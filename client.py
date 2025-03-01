@@ -1,26 +1,38 @@
 import socket
+import threading
 
-# server configuration
-HOST = "127.0.0.1"
-PORT = 5005
+HOST = '127.0.0.1'
+PORT = 5555
 
-# Start Client
-def start_client():
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((HOST, PORT))
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((HOST, PORT))
 
+# Get the username and send it to the server
+username = input("Enter your username: ")
+client.send(username.encode('utf-8'))
+
+
+def receive_messages():
+    """Receive messages from the server and display them."""
     while True:
-        message = input("You: ")
-        if message.lower() == "exit":
+        try:
+            message = client.recv(1024).decode('utf-8')
+            if not message:
+                break
+            print(message)
+        except:
+            print("Disconnected from the server.")
             break
 
-        client.send(message.encode('utf-8'))
-        response = client.recv(1024).decode('utf-8')
-        print(f"Server: {response}")
 
-    client.close()
-    print("Disconnected from server.")
+# Start listening for messages
+threading.Thread(target=receive_messages, daemon=True).start()
 
+# Send messages to the server
+while True:
+    message = input()
+    if message.lower() == "exit":
+        break
+    client.send(message.encode('utf-8'))
 
-if __name__ == "__main__":
-    start_client()
+client.close()
