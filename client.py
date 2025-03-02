@@ -4,6 +4,15 @@ import tkinter as tk
 from tkinter import simpledialog, scrolledtext, filedialog, messagebox
 from database import register_user, verify_user
 import os
+import platform
+from pygame import mixer
+from plyer import notification
+
+# Initialize pygame mixer
+mixer.init()
+
+# Path to the notification sound file
+NOTIFICATION_SOUND = "notification.mp3"
 
 
 class ChatClient:
@@ -115,15 +124,40 @@ class ChatClient:
 
                 if message.startswith("FILE_RECEIVED:"):
                     filename = message.split(":")[1]
-                    messagebox.showinfo(
-                        "File Transfer", f"New file received: {filename}")
+                    self.show_notification(
+                        "File Received", f"New file received: {filename}")
                 else:
-                    self.text_area.config(state=tk.NORMAL)
-                    self.text_area.insert(tk.END, message + "\n")
-                    self.text_area.config(state=tk.DISABLED)
-                    self.text_area.yview(tk.END)
+                    self.show_notification("New Message", message)
+
+                self.text_area.config(state=tk.NORMAL)
+                self.text_area.insert(tk.END, message + "\n")
+                self.text_area.config(state=tk.DISABLED)
+                self.text_area.yview(tk.END)
             except:
                 break
+
+    def show_notification(self, title, message):
+        """Displays a system notification and plays a sound."""
+        self.play_sound()
+        try:
+            notification.notify(
+                title=title,
+                message=message,
+                timeout=3  # Notification disappears after 3 seconds
+            )
+        except Exception as e:
+            print("Notification Error:", e)
+
+    def play_sound(self):
+        """Plays a sound alert when a new message arrives."""
+        try:
+            if os.path.exists(NOTIFICATION_SOUND):
+                mixer.music.load(NOTIFICATION_SOUND)
+                mixer.music.play()
+            else:
+                print("Notification sound file not found!")
+        except Exception as e:
+            print("Sound Error:", e)
 
 
 root = tk.Tk()
