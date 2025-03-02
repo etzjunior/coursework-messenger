@@ -1,7 +1,9 @@
 import socket
 import threading
 import os
+from datetime import datetime
 from database import verify_user, register_user
+
 
 clients = {}  # Stores connected clients
 
@@ -19,7 +21,8 @@ def handle_client(client_socket, username):
                 filesize = int(filesize)
                 handle_file_transfer(client_socket, filename, filesize)
             else:
-                broadcast(f"{username}: {message}", client_socket)
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                broadcast(f"[{timestamp}] {username}: {message}", client_socket)
         except:
             break
 
