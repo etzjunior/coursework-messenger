@@ -17,8 +17,10 @@ def handle_client(client_socket, username):
                 break
 
             if message.startswith("FILE_TRANSFER:"):
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 filename, filesize = message[len("FILE_TRANSFER:"):].split(":")
                 filesize = int(filesize)
+                broadcast(f"[{timestamp}] {username} is sending file: {filename}", client_socket)
                 handle_file_transfer(client_socket, filename, filesize)
             else:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -46,7 +48,8 @@ def handle_file_transfer(client_socket, filename, filesize):
             received_size += len(chunk)
 
     print(f"File received: {filename} ({filesize} bytes)")
-    broadcast(f"FILE_RECEIVED:{filename}", client_socket)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    broadcast(f"[{timestamp}] FILE_RECEIVED:{filename}", client_socket)
 
 
 def broadcast(message, sender_socket):
