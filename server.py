@@ -1,37 +1,33 @@
 import socket
 import threading
-from encryption import encrypt_message, decrypt_message
 
-clients = []
+clients = {}
 
 
-def handle_client(client_socket):
+def handle_client(client_socket, username):
+    """Handles receiving and broadcasting messages for a client."""
     while True:
         try:
-            encrypted_message = client_socket.recv(1024)
-            if not encrypted_message:
+            message = client_socket.recv(1024).decode()
+            if not message:
                 break
 
-            message = decrypt_message(encrypted_message)
-            print(f"Received: {message}")
-
-            broadcast(message, client_socket)
+            broadcast(f"{username}: {message}", client_socket)
         except:
             break
 
-    clients.remove(client_socket)
+    del clients[username]
     client_socket.close()
 
 
 def broadcast(message, sender_socket):
-    """Send encrypted messages to all clients except the sender."""
-    encrypted_message = encrypt_message(message)
-    for client in clients:
+    """Send message to all clients except sender."""
+    for user, client in clients.items():
         if client != sender_socket:
             try:
-                client.send(encrypted_message)
+                client.send(message.encode())
             except:
-                clients.remove(client)
+                del clients[user]
 
 
 def start_server():
@@ -42,10 +38,20 @@ def start_server():
 
     while True:
         client_socket, addr = server.accept()
-        clients.append(client_socket)
-        print(f"New connection: {addr}")
 
-        threading.Thread(target=handle_client, args=(client_socket,)).start()
+        # Receive username from the client
+        username = client_socket.recv(1024).decode()
+
+        if username in clients:
+            client_socket.send("Username already in use!".encode())
+            client_socket.close()
+            continue
+
+        clients[username] = client_socket
+        print(f"{username} connected from {addr}")
+
+        threading.Thread(target=handle_client, args=(
+            client_socket, username)).start()
 
 
 start_server()
