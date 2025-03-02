@@ -19,6 +19,7 @@ class ChatClient:
     def __init__(self, root):
         self.root = root
         self.root.title("Secure Chat Client")
+        self.is_muted = False
 
         self.username = self.authenticate_user()
         if not self.username:
@@ -38,6 +39,10 @@ class ChatClient:
         self.file_button = tk.Button(
             root, text="Send File", command=self.send_file)
         self.file_button.grid(row=1, column=2, padx=10, pady=10)
+
+        self.mute_button = tk.Button(
+            root, text="🔊 Mute", command=self.toggle_mute)
+        self.mute_button.grid(row=2, column=0, padx=10, pady=10)   # mute option
 
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.connect(("127.0.0.1", 5556))
@@ -147,17 +152,28 @@ class ChatClient:
             )
         except Exception as e:
             print("Notification Error:", e)
+    
+    # option to toggle notification sound
+    def toggle_mute(self):
+        """Toggles notification sound on/off."""
+        self.is_muted = not self.is_muted
+        if self.is_muted:
+            self.mute_button.config(text="🔇 Unmute")
+        else:
+            self.mute_button.config(text="🔊 Mute")
+
 
     def play_sound(self):
         """Plays a sound alert when a new message arrives."""
-        try:
-            if os.path.exists(NOTIFICATION_SOUND):
-                mixer.music.load(NOTIFICATION_SOUND)
-                mixer.music.play()
-            else:
-                print("Notification sound file not found!")
-        except Exception as e:
-            print("Sound Error:", e)
+        if not self.is_muted:  # Only play if not muted
+            try:
+                if os.path.exists(NOTIFICATION_SOUND):
+                    mixer.music.load(NOTIFICATION_SOUND)
+                    mixer.music.play()
+                else:
+                    print("Notification sound file not found!")
+            except Exception as e:
+                print("Sound Error:", e)
 
 
 root = tk.Tk()
