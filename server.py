@@ -1,60 +1,50 @@
 import socket
 import threading
+from encryption import encrypt_message, decrypt_message
 
-# Server configuration
-HOST = '127.0.0.1'
-PORT = 5555
-
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((HOST, PORT))
-server.listen()
-
-clients = {}
-
-
-def broadcast(message, sender_socket=None):
-    """Send a message to all connected clients except the sender."""
-    for client in clients:
-        if client != sender_socket:
-            try:
-                client.send(message)
-            except:
-                client.close()
-                del clients[client]
+clients = []
 
 
 def handle_client(client_socket):
-    """Handle client communication."""
-    try:
-        # First message from the client should be their username
-        username = client_socket.recv(1024).decode('utf-8')
-        clients[client_socket] = username
-        print(f"{username} has joined the chat.")
-        broadcast(f"{username} has joined the chat.".encode(
-            'utf-8'), client_socket)
-
-        while True:
-            message = client_socket.recv(1024)
-            if not message:
+    while True:
+        try:
+            encrypted_message = client_socket.recv(1024)
+            if not encrypted_message:
                 break
-            formatted_message = f"{username}: {message.decode('utf-8')}"
-            print(formatted_message)
-            broadcast(formatted_message.encode('utf-8'), client_socket)
 
-    except:
-        pass
+            message = decrypt_message(encrypted_message)
+            print(f"Received: {message}")
 
-    # Remove client on disconnect
-    print(f"{clients[client_socket]} has left the chat.")
-    broadcast(f"{clients[client_socket]} has left the chat.".encode('utf-8'))
-    del clients[client_socket]
+            broadcast(message, client_socket)
+        except:
+            break
+
+    clients.remove(client_socket)
     client_socket.close()
 
 
+def broadcast(message, sender_socket):
+    """Send encrypted messages to all clients except the sender."""
+    encrypted_message = encrypt_message(message)
+    for client in clients:
+        if client != sender_socket:
+            try:
+                client.send(encrypted_message)
+            except:
+                clients.remove(client)
+
+
 def start_server():
-    print(f"Server is listening on {HOST}:{PORT}...")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("0.0.0.0", 5556))
+    server.listen(5)
+    print("Server started on port 5556...")
+
     while True:
-        client_socket, _ = server.accept()
+        client_socket, addr = server.accept()
+        clients.append(client_socket)
+        print(f"New connection: {addr}")
+
         threading.Thread(target=handle_client, args=(client_socket,)).start()
 
 
