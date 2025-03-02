@@ -1,8 +1,9 @@
 import socket
 import threading
 import tkinter as tk
-from tkinter import simpledialog, scrolledtext, messagebox
+from tkinter import simpledialog, scrolledtext, filedialog, messagebox
 from database import register_user, verify_user
+import os
 
 
 class ChatClient:
@@ -10,13 +11,13 @@ class ChatClient:
         self.root = root
         self.root.title("Secure Chat Client")
 
-        self.username = self.authenticate_user()  # Ask for login or register
+        self.username = self.authenticate_user()
         if not self.username:
-            return  # Exit if authentication failed
+            return
 
         self.text_area = scrolledtext.ScrolledText(
             root, wrap=tk.WORD, state='disabled', height=20, width=50)
-        self.text_area.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        self.text_area.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
 
         self.entry = tk.Entry(root, width=40)
         self.entry.grid(row=1, column=0, padx=10, pady=10)
@@ -25,11 +26,20 @@ class ChatClient:
             root, text="Send", command=self.send_message)
         self.send_button.grid(row=1, column=1, padx=10, pady=10)
 
+        self.file_button = tk.Button(
+            root, text="Send File", command=self.send_file)
+        self.file_button.grid(row=1, column=2, padx=10, pady=10)
+
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.connect(("127.0.0.1", 5556))
 
-        # Send username to the server for authentication
-        self.client.send(self.username.encode())
+        self.client.send(f"{self.username}:{self.password}".encode())
+
+        response = self.client.recv(1024).decode()
+        if response == "LOGIN_FAILED":
+            messagebox.showerror("Error", "Invalid credentials!")
+            self.root.quit()
+            return
 
         threading.Thread(target=self.receive_messages, daemon=True).start()
 
@@ -62,28 +72,56 @@ class ChatClient:
             elif choice == 'l':
                 if verify_user(username, password):
                     messagebox.showinfo("Success", "Login successful!")
-                    return username  # Return username for chat
+                    self.password = password
+                    return username
                 else:
                     messagebox.showerror(
                         "Error", "Invalid username or password!")
 
     def send_message(self):
+        """Sends a message to the server."""
         message = self.entry.get()
         if message:
             self.client.send(message.encode())
             self.entry.delete(0, tk.END)
 
+    def send_file(self):
+        """Handles file selection and sending to the server."""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Text files", "*.txt"), ("PDF files", "*.pdf"),
+                       ("PNG images", "*.png"), ("JPG images", "*.jpg")])
+        if not file_path:
+            return
+
+        filename = os.path.basename(file_path)
+        filesize = os.path.getsize(file_path)
+
+        # Notify server about file transfer
+        self.client.send(f"FILE_TRANSFER:{filename}:{filesize}".encode())
+
+        with open(file_path, "rb") as file:
+            while chunk := file.read(4096):
+                self.client.send(chunk)
+
+        messagebox.showinfo("Success", f"File {filename} sent successfully!")
+
     def receive_messages(self):
+        """Receives messages from the server and updates the UI."""
         while True:
             try:
                 message = self.client.recv(1024).decode()
                 if not message:
                     break
 
-                self.text_area.config(state=tk.NORMAL)
-                self.text_area.insert(tk.END, message + "\n")
-                self.text_area.config(state=tk.DISABLED)
-                self.text_area.yview(tk.END)
+                if message.startswith("FILE_RECEIVED:"):
+                    filename = message.split(":")[1]
+                    messagebox.showinfo(
+                        "File Transfer", f"New file received: {filename}")
+                else:
+                    self.text_area.config(state=tk.NORMAL)
+                    self.text_area.insert(tk.END, message + "\n")
+                    self.text_area.config(state=tk.DISABLED)
+                    self.text_area.yview(tk.END)
             except:
                 break
 
