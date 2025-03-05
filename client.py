@@ -6,7 +6,7 @@ from database import register_user, verify_user
 import os
 from pygame import mixer
 from plyer import notification
-from config import HOST, PORT  # Import from config
+from config import HOST, PORT, ALLOWED_EXTENSIONS  # Import ALLOWED_EXTENSIONS
 
 # Initialize pygame mixer
 mixer.init()
@@ -118,6 +118,16 @@ class ChatClient:
             return
 
         filename = os.path.basename(file_path)
+        file_ext = os.path.splitext(filename)[1].lower()
+        
+        # Check if file extension is allowed
+        if file_ext not in ALLOWED_EXTENSIONS:
+            messagebox.showerror(
+                "Error", 
+                f"File type not allowed. Allowed types: PDF, DOC, DOCX, JPEG"
+            )
+            return
+
         filesize = os.path.getsize(file_path)
 
         try:

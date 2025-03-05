@@ -4,7 +4,7 @@ import os
 import queue
 from datetime import datetime
 from database import verify_user, register_user
-from config import HOST, PORT, MAX_USERS
+from config import HOST, PORT, MAX_USERS, ALLOWED_EXTENSIONS
 
 clients = {}  # Stores connected clients
 message_queue = queue.Queue()
@@ -59,6 +59,14 @@ def handle_client(client_socket, username):
 
 def handle_file_transfer(client_socket, filename, filesize, username):
     """Handles receiving a file from a client and saving it."""
+    file_ext = os.path.splitext(filename)[1].lower()
+    
+    # Check if file extension is allowed
+    if file_ext not in ALLOWED_EXTENSIONS:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        client_socket.send(f"[{timestamp}] ERROR: File type not allowed.".encode())
+        return
+
     save_dir = "received_files"
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, filename)
